@@ -107,6 +107,9 @@ namespace CloudStructures
 
     public class RedisSettingsElement : ConfigurationElement
     {
+        [ConfigurationProperty("name", IsRequired = false)]
+        public string Name { get { return (string)base["name"]; } }
+
         [ConfigurationProperty("connectionString", IsRequired = true)]
         public string ConnectionString { get { return (string)base["connectionString"]; } }
 

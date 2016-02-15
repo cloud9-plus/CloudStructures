@@ -301,5 +301,20 @@ return tostring(x)", new[] { Key }, new RedisValue[] { value, min }, commandFlag
                 return Tracing.CreateSentAndReceived(new { bit, start, end }, sizeof(bool) + sizeof(long) * 2, r, sizeof(long));
             });
         }
+
+        /// <summary>
+        /// GET http://redis.io/commands/get
+        /// </summary>
+        public Task<RedisResult<object>> Get(Type valueType, CommandFlags commandFlags = CommandFlags.None)
+        {
+            return TraceHelper.RecordReceive(Settings, Key, CallType, async () =>
+            {
+                var value = await Command.StringGetAsync(Key, commandFlags).ForAwait();
+
+                var size = 0L;
+                var result = RedisResult.FromRedisValue(value, valueType, Settings, out size);
+                return Tracing.CreateReceived(result, size);
+            });
+        }
     }
 }

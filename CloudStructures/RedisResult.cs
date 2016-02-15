@@ -19,6 +19,16 @@ namespace CloudStructures
             }
             return new RedisResult<T>(settings.ValueConverter.Deserialize<T>(value, out valueSize));
         }
+
+        public static RedisResult<object> FromRedisValue(RedisValue value, Type valueType, RedisSettings settings, out long valueSize)
+        {
+            if (value.IsNull)
+            {
+                valueSize = 0;
+                return RedisResult<object>.NoValue;
+            }
+            return new RedisResult<object>(settings.ValueConverter.Deserialize(valueType, value, out valueSize));
+        }
     }
 
     public struct RedisResult<T>

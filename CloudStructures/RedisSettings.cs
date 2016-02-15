@@ -1,6 +1,7 @@
 ﻿using StackExchange.Redis;
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Threading;
 
@@ -275,6 +276,12 @@ namespace CloudStructures
         public RedisLua Lua(RedisKey key)
         {
             return new RedisLua(this, key);
+        }
+
+        public IServer[] Servers()
+        {
+            var con = GetConnection();
+            return ConfigurationOptions.EndPoints.Select(x => con.GetServer(x)).ToArray();
         }
 
         public class OpenConnectionEventArgs : EventArgs
