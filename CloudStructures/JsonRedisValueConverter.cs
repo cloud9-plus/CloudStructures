@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using Newtonsoft.Json;
 
 namespace CloudStructures
 {
@@ -11,7 +12,7 @@ namespace CloudStructures
             using (var ms = new MemoryStream(value))
             using (var sr = new StreamReader(ms, Encoding.UTF8))
             {
-                var result = Jil.JSON.Deserialize(sr, type);
+                var result = new JsonSerializer().Deserialize(sr, type);
                 return result;
             }
         }
@@ -22,7 +23,7 @@ namespace CloudStructures
             {
                 using (var sw = new StreamWriter(ms, Encoding.UTF8))
                 {
-                    Jil.JSON.Serialize(value, sw);
+                    new JsonSerializer().Serialize(sw, value);
                 }
                 var result = ms.ToArray();
                 resultSize = result.Length;
@@ -52,7 +53,7 @@ namespace CloudStructures
             using (var gzip = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionMode.Decompress))
             using (var sr = new StreamReader(gzip, Encoding.UTF8))
             {
-                var result = Jil.JSON.Deserialize(sr, type);
+                var result = new JsonSerializer().Deserialize(sr, type);
                 return result;
             }
         }
@@ -64,7 +65,7 @@ namespace CloudStructures
                 using (var gzip = new System.IO.Compression.GZipStream(ms, compressionLevel))
                 using (var sw = new StreamWriter(gzip))
                 {
-                    Jil.JSON.Serialize(value, sw);
+                    new JsonSerializer().Serialize(sw, value);
                 }
                 var result = ms.ToArray();
                 resultSize = result.Length;

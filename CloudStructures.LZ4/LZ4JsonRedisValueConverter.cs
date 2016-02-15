@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using Newtonsoft.Json;
 using LZ4Stream = LZ4.LZ4Stream;
 
 namespace CloudStructures
@@ -55,7 +56,7 @@ namespace CloudStructures
             using (var lz4 = new LZ4Stream(ms, System.IO.Compression.CompressionMode.Decompress, blockSize: blockSize))
             using (var sr = new StreamReader(lz4, Encoding.UTF8))
             {
-                var result = Jil.JSON.Deserialize(sr, type);
+                var result = new JsonSerializer().Deserialize(sr, type);
                 return result;
             }
         }
@@ -67,7 +68,7 @@ namespace CloudStructures
                 using (var lz4 = new LZ4Stream(ms, System.IO.Compression.CompressionMode.Compress, highCompression, blockSize))
                 using (var sw = new StreamWriter(lz4))
                 {
-                    Jil.JSON.Serialize(value, sw);
+                    new JsonSerializer().Serialize(sw, value);
                 }
                 var result = ms.ToArray();
                 resultSize = result.Length;
