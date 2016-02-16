@@ -48,134 +48,31 @@ namespace CloudStructures
 
         public ConnectionMultiplexer GetConnection()
         {
-            if (connection == null || !connection.IsConnected)
+            if (connection != null && connection.IsConnected)
             {
-                lock (connectionLock)
-                {
-                    if (connection != null && connection.IsConnected) return connection;
-                    if (connection != null)
-                    {
-                        connection.Close(false);
-                        connection.Dispose();
-                        connection = null;
-                    }
+                return connection;
+            }
 
-                    var tryCount = 0;
-                    var allowRetry = false;
-                    do
-                    {
-                        allowRetry = false;
-                        try
-                        {
-                            var sw = Stopwatch.StartNew();
-                            var innerSw = Stopwatch.StartNew();
-                            try
-                            {
-                                // Sometimes ConnectionMultiplexer.Connect is failed and issue does not solved https://github.com/StackExchange/StackExchange.Redis/issues/42
-                                // I've created manualy Connect and control timeout.
-                                // I recommend set connectTimeout from 1000 to 5000. (configure your network latency)
-                                var tcs = new System.Threading.Tasks.TaskCompletionSource<ConnectionMultiplexer>();
-                                var connectThread = new Thread(_ =>
-                                {
-                                    try
-                                    {
-                                        var connTask = StackExchange.Redis.ConnectionMultiplexer.ConnectAsync(configuration, connectionMultiplexerLog)
-                                            .ContinueWith(x =>
-                                            {
-                                                innerSw.Stop();
-                                                if (x.IsCompleted)
-                                                {
-                                                    try
-                                                    {
-                                                        if (!tcs.TrySetResult(x.Result))
-                                                        {
-                                                            // already faulted
-                                                            x.Result.Close(false);
-                                                            x.Result.Dispose();
-                                                        }
-                                                    }
-                                                    catch (Exception ex)
-                                                    {
-                                                        var ev = OnConnectAsyncFailed;
-                                                        if (ev != null)
-                                                        {
-                                                            ev(new OpenConnectionFailedEventArgs(configuration, innerSw.Elapsed, ex));
-                                                        }
-                                                    }
-                                                }
-                                                else if (x.IsFaulted)
-                                                {
-                                                    var ev = OnConnectAsyncFailed;
-                                                    if (ev != null)
-                                                    {
-                                                        ev(new OpenConnectionFailedEventArgs(configuration, innerSw.Elapsed, x.Exception));
-                                                    }
-                                                }
-                                            });
-                                        if (!connTask.Wait(this.configuration.ConnectTimeout))
-                                        {
-                                            tcs.TrySetException(new TimeoutException("Redis Connect Timeout. Elapsed:" + sw.Elapsed.TotalMilliseconds + "ms"));
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        tcs.TrySetException(ex);
-                                    }
-                                });
-                                connectThread.Start();
+            var sw = Stopwatch.StartNew();
+            connection = ConnectionMultiplexer.Connect(configuration, connectionMultiplexerLog);
+            sw.Stop();
+            try
+            {
+                OnConnectionOpen?.Invoke(new OpenConnectionEventArgs(configuration, sw.Elapsed));
 
-                                connection = tcs.Task.GetAwaiter().GetResult();
-                                connection.IncludeDetailInExceptions = true;
-                                sw.Stop();
-                            }
-                            catch (Exception ex)
-                            {
-                                sw.Stop();
-                                try
-                                {
-                                    var ev = OnConnectionOpenFailed;
-                                    if (ev != null)
-                                    {
-                                        ev(new OpenConnectionFailedEventArgs(configuration, sw.Elapsed, ex));
-                                    }
-                                    throw;
-                                }
-                                finally
-                                {
-                                    connection = null;
-                                }
-                            }
-
-                            try
-                            {
-                                var openEv = OnConnectionOpen;
-                                if (openEv != null)
-                                {
-                                    openEv(new OpenConnectionEventArgs(configuration, sw.Elapsed));
-                                }
-
-                                // attach events
-                                connection.ConfigurationChanged += connection_ConfigurationChanged;
-                                connection.ConfigurationChangedBroadcast += connection_ConfigurationChangedBroadcast;
-                                connection.ConnectionFailed += connection_ConnectionFailed;
-                                connection.ConnectionRestored += connection_ConnectionRestored;
-                                connection.ErrorMessage += connection_ErrorMessage;
-                                connection.HashSlotMoved += connection_HashSlotMoved;
-                                connection.InternalError += connection_InternalError;
-                            }
-                            catch
-                            {
-                                connection = null;
-                                throw;
-                            }
-                        }
-                        catch (TimeoutException) when (tryCount < configuration.ConnectRetry)
-                        {
-                            tryCount++;
-                            allowRetry = true;
-                        }
-                    } while (connection == null && allowRetry);
-                }
+                // attach events
+                connection.ConfigurationChanged += connection_ConfigurationChanged;
+                connection.ConfigurationChangedBroadcast += connection_ConfigurationChangedBroadcast;
+                connection.ConnectionFailed += connection_ConnectionFailed;
+                connection.ConnectionRestored += connection_ConnectionRestored;
+                connection.ErrorMessage += connection_ErrorMessage;
+                connection.HashSlotMoved += connection_HashSlotMoved;
+                connection.InternalError += connection_InternalError;
+            }
+            catch
+            {
+                connection = null;
+                throw;
             }
 
             return connection;
